@@ -1,0 +1,23 @@
+# Language Tutor - Intel Mac Requirements
+# Install with: pip3 install -r requirements.txt --break-system-packages
+
+# Audio Processing
+pyaudio>=0.2.13
+
+# Speech Recognition (Intel Mac optimized)
+faster-whisper>=1.0.0
+
+# Numerical Computing
+numpy>=1.24.0
+
+# Keyboard Input Handling
+pynput>=1.7.6
+
+# Text-to-Speech
+edge-tts>=6.1.0
+
+# HTTP Requests (for Ollama API if used)
+requests>=2.31.0
+
+# Note: Claude Desktop CLI installed separately via npm:
+# npm install -g @anthropic-ai/claude-cli
