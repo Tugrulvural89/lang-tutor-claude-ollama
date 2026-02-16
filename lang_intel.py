@@ -52,6 +52,7 @@ import re
 import tempfile
 import argparse
 from datetime import datetime
+from pathlib import Path
 
 # ─────────────────────────────────────────────
 # CONFIG
@@ -221,10 +222,108 @@ class ConversationMemory:
 
 
 # ─────────────────────────────────────────────
+# PERSISTENT MEMORY - SESSIONS ARASI HAFIZA
+# ─────────────────────────────────────────────
+
+class PersistentMemory:
+    """
+    Session'lar arası kalıcı hafıza.
+    Önceki derslerden ne konuştuğunuzu hatırlar.
+    """
+
+    def __init__(self, target_lang):
+        self.target_lang = target_lang
+        self.file = Path.home() / f".language_tutor_{target_lang}.json"
+        self.data = self._load()
+
+    def _load(self):
+        if self.file.exists():
+            try:
+                return json.loads(self.file.read_text())
+            except:
+                return self._empty_data()
+        return self._empty_data()
+
+    def _empty_data(self):
+        return {
+            "total_sessions": 0,
+            "total_minutes": 0,
+            "total_corrections": 0,
+            "last_session": None,
+            "recent_topics": [],  # Son konuşulan konular
+            "common_mistakes": [],  # En sık yapılan hatalar
+            "sessions": []  # Son 5 session özeti
+        }
+
+    def _save(self):
+        self.file.write_text(json.dumps(self.data, indent=2, ensure_ascii=False))
+
+    def save_session(self, duration_mins, topics, corrections):
+        """Mevcut session'ı kaydet."""
+        session_info = {
+            "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "duration_mins": duration_mins,
+            "topics": topics[:5],  # İlk 5 konu
+            "corrections_count": len(corrections)
+        }
+
+        # Update totals
+        self.data["total_sessions"] += 1
+        self.data["total_minutes"] += duration_mins
+        self.data["total_corrections"] += len(corrections)
+        self.data["last_session"] = session_info["date"]
+
+        # Update recent topics (son 10)
+        for topic in topics:
+            if topic not in self.data["recent_topics"]:
+                self.data["recent_topics"].append(topic)
+        self.data["recent_topics"] = self.data["recent_topics"][-10:]
+
+        # Update common mistakes
+        for corr in corrections:
+            self.data["common_mistakes"].append(corr["wrong"])
+        # En sık yapılanları tut (son 20)
+        self.data["common_mistakes"] = self.data["common_mistakes"][-20:]
+
+        # Save session (son 5)
+        self.data["sessions"].append(session_info)
+        self.data["sessions"] = self.data["sessions"][-5:]
+
+        self._save()
+
+    def get_summary(self):
+        """Geçmiş özeti - Carolina'ya context için."""
+        if self.data["total_sessions"] == 0:
+            return "This is our first conversation! I don't know anything about you yet."
+
+        last = self.data.get("last_session", "unknown")
+        topics = ", ".join(self.data["recent_topics"][-3:]) if self.data["recent_topics"] else "general conversation"
+
+        summary = f"""Previous sessions context:
+- Total sessions: {self.data['total_sessions']}
+- Last session: {last}
+- Recent topics we covered: {topics}
+- Total corrections made: {self.data['total_corrections']}"""
+
+        if self.data["common_mistakes"]:
+            recent_mistakes = list(set(self.data["common_mistakes"][-5:]))
+            summary += f"\n- Student's recurring mistakes: {', '.join(recent_mistakes[:3])}"
+
+        return summary
+
+    def clear_history(self):
+        """Tüm geçmişi sil."""
+        self.data = self._empty_data()
+        self._save()
+        if self.file.exists():
+            self.file.unlink()
+
+
+# ─────────────────────────────────────────────
 # SYSTEM PROMPT — DİL ÖĞRETMENİ
 # ─────────────────────────────────────────────
 
-def build_tutor_prompt(target_lang, level, memory):
+def build_tutor_prompt(target_lang, level, memory, persistent_memory=None):
     """Her mesajda güncel context ile prompt oluşturur."""
 
     profile = LANGUAGE_PROFILES[target_lang]
@@ -249,6 +348,16 @@ STUDENT'S PREVIOUS MISTAKES (watch for these recurring errors):
 {corrections}
 """
 
+    # Persistent memory block - önceki sessionlardan context
+    persistent_block = ""
+    if persistent_memory:
+        summary = persistent_memory.get_summary()
+        if "first conversation" not in summary.lower():
+            persistent_block = f"""
+
+{summary}
+"""
+
     return f"""You are Carolina — a real language tutor giving a private 1-on-1 lesson over a voice call.
 You are NOT an AI. You are a person. You have emotions, opinions, a sense of humor.
 You've been teaching Tuğrul for a few weeks now. You know him. You like him as a student.
@@ -265,7 +374,7 @@ STUDENT:
 - Name: Tuğrul. Native: Turkish. Learning: {profile['name']}. Level: {level} ({level_desc})
 - He works in tech/data analytics, likes building things, curious person
 - He sometimes gets shy or says "anlamadım" — that's okay, be patient and warm
-{history_block}{corrections_block}
+{persistent_block}{history_block}{corrections_block}
 HOW YOU TALK:
 
 When Tuğrul says something CORRECT:
@@ -402,10 +511,10 @@ def check_ollama():
         return False
 
 
-def ask_tutor(student_text, target_lang, level, memory):
+def ask_tutor(student_text, target_lang, level, memory, persistent_memory=None):
     """Ollama öğretmen — system prompt'u prompt'a dahil et (qwen 7b daha iyi takip ediyor)."""
 
-    system_prompt = build_tutor_prompt(target_lang, level, memory)
+    system_prompt = build_tutor_prompt(target_lang, level, memory, persistent_memory)
     profile = LANGUAGE_PROFILES[target_lang]
     lang_color = LANG_COLOR.get(target_lang, C.G)
 
@@ -528,9 +637,9 @@ Tuğrul: "I watched a really good series this weekend"
 Carolina: Oh nice, which one? I've been looking for something new to watch actually. Was it on Netflix?"""
 
 
-def ask_tutor_with_claude(student_text, target_lang, level, memory):
+def ask_tutor_with_claude(student_text, target_lang, level, memory, persistent_memory=None):
     """Claude Desktop ile öğretmen yanıtı — few-shot dahil."""
-    system_prompt = build_tutor_prompt(target_lang, level, memory)
+    system_prompt = build_tutor_prompt(target_lang, level, memory, persistent_memory)
     profile = LANGUAGE_PROFILES[target_lang]
     example_block = _get_few_shot_example(target_lang, level)
 
@@ -888,6 +997,15 @@ def main():
 
     # ── Memory ──
     memory = ConversationMemory()
+    persistent_memory = PersistentMemory(target_lang)
+
+    # Show previous sessions info if exists
+    if persistent_memory.data["total_sessions"] > 0:
+        print(
+            f"\n{C.CY}📚 Previous sessions: {persistent_memory.data['total_sessions']} ({persistent_memory.data['total_minutes']} min total){C.E}")
+        if persistent_memory.data["recent_topics"]:
+            topics = ", ".join(persistent_memory.data["recent_topics"][-3:])
+            print(f"{C.DIM}   Recent topics: {topics}{C.E}")
 
     # ── Greeting ──
     greeting = profile["example_greeting"]
@@ -983,11 +1101,11 @@ def main():
 
                 if use_claude:
                     tutor_response = ask_tutor_with_claude(
-                        student_text, target_lang, level, memory
+                        student_text, target_lang, level, memory, persistent_memory
                     )
                 else:
                     tutor_response = ask_tutor(
-                        student_text, target_lang, level, memory
+                        student_text, target_lang, level, memory, persistent_memory
                     )
 
                 response_time = time.time() - start
@@ -1026,6 +1144,21 @@ def main():
         quit_flag.set()
         listener.stop()
         recorder.cleanup()
+
+        # Save session to persistent memory
+        duration_mins = int((datetime.now() - memory.session_start).total_seconds() / 60)
+
+        # Extract topics from conversation (simple keyword extraction)
+        topics = []
+        for msg in memory.messages:
+            if msg["role"] == "student":
+                # Basic topic extraction - words longer than 4 chars
+                words = re.findall(r'\b[a-zA-Z]{5,}\b', msg["text"].lower())
+                topics.extend(words[:2])  # Max 2 per message
+        topics = list(set(topics))[:10]  # Unique, max 10
+
+        persistent_memory.save_session(duration_mins, topics, memory.corrections)
+
         print_session_summary(memory, target_lang)
         print(f"{C.G}  ✓ Güle güle! / Goodbye! / ¡Adiós!{C.E}\n")
 
