@@ -2,11 +2,11 @@
 """
 ==========================================================
   🌍 LANGUAGE TUTOR v1 — Çok Dilli Dil Öğretmeni
-  M1 MacBook Air (8GB RAM) - Optimized for Apple Silicon
+  M4 Pro MacBook (24GB) - Tamamen Yerel
 ==========================================================
 
 Mimari:
-  [Cmd+Shift] → Konuş → MLX Whisper → Claude Desktop → Edge TTS
+  [Cmd+Shift] → Konuş → MLX Whisper → Ollama (öğretmen) → Edge TTS
 
 Desteklenen Diller:
   🇹🇷 Türkçe (ana dil)
@@ -20,21 +20,17 @@ Desteklenen Diller:
   - Seviye adaptasyonu (A1→C2)
   - Konuşma hafızası (son 20 mesaj)
   - Edge TTS ile doğal sesli yanıt
-  - Claude Desktop ile güçlü dil modeli (RAM tasarrufu)
-  - MLX Whisper - Apple Silicon optimize
-  - M1 8GB RAM için optimize
+  - Opsiyonel Claude Desktop entegrasyonu
 
-Gereksinimler (M1 Mac):
-  pip install pyaudio mlx-whisper numpy pynput edge-tts requests --break-system-packages
-  npm install -g @anthropic-ai/claude-cli  # Claude Desktop CLI
+Gereksinimler:
+  pip install pyaudio mlx-whisper numpy pynput edge-tts requests
 
 Kullanım:
-  python3 lang_m1.py                     # Claude Desktop (default, RAM tasarruflu)
-  python3 lang_m1.py --ollama            # Ollama zorla (daha fazla RAM)
-  python3 lang_m1.py --lang es           # Doğrudan İspanyolca
-  python3 lang_m1.py --lang en           # Doğrudan İngilizce
-  python3 lang_m1.py --level B1          # Seviye belirle
-  python3 lang_m1.py --slow              # Yavaş TTS
+  python3 language_tutor.py
+  python3 language_tutor.py --lang es        # Doğrudan İspanyolca
+  python3 language_tutor.py --lang en        # Doğrudan İngilizce
+  python3 language_tutor.py --level B1       # Seviye belirle
+  python3 language_tutor.py --claude         # Claude Desktop entegrasyonu
 ==========================================================
 """
 
@@ -52,7 +48,6 @@ import re
 import tempfile
 import argparse
 from datetime import datetime
-from pathlib import Path
 
 # ─────────────────────────────────────────────
 # CONFIG
@@ -60,16 +55,7 @@ from pathlib import Path
 
 SAMPLE_RATE = 16000
 CHANNELS = 1
-
-# Whisper — platform otomatik algılama
-# Apple Silicon → MLX Whisper (hızlı, optimize)
-# Intel Mac / Linux → faster-whisper (CPU, biraz yavaş ama çalışır)
-import platform
-
-IS_APPLE_SILICON = platform.machine() == "arm64" and platform.system() == "Darwin"
-
-WHISPER_MODEL_MLX = "mlx-community/whisper-base"  # M1 8GB için hafif model
-WHISPER_MODEL_FASTER = "base"  # faster-whisper fallback
+WHISPER_MODEL = "mlx-community/whisper-large-v3-turbo"
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "qwen2.5:7b"
@@ -92,7 +78,7 @@ LANGUAGE_PROFILES = {
         "name": "Español",
         "flag": "🇪🇸",
         "whisper_lang": "es",
-        "tts_voice": "es-MX-DaliaNeural",
+        "tts_voice": "es-ES-XimenaNeural",  #es-ES-XimenaNeural
         "tts_rate": "-5%",  # İspanyolca biraz yavaş → öğrenci anlaması için
         "tts_pitch": "+0Hz",
         "example_greeting": "Hola Tuğrul! Bueno... dime, qué tal tu semana? Yani bu hafta nasıl geçti, bana İspanyolca anlatmayı dene!",
@@ -222,108 +208,10 @@ class ConversationMemory:
 
 
 # ─────────────────────────────────────────────
-# PERSISTENT MEMORY - SESSIONS ARASI HAFIZA
-# ─────────────────────────────────────────────
-
-class PersistentMemory:
-    """
-    Session'lar arası kalıcı hafıza.
-    Önceki derslerden ne konuştuğunuzu hatırlar.
-    """
-
-    def __init__(self, target_lang):
-        self.target_lang = target_lang
-        self.file = Path.home() / f".language_tutor_{target_lang}.json"
-        self.data = self._load()
-
-    def _load(self):
-        if self.file.exists():
-            try:
-                return json.loads(self.file.read_text())
-            except:
-                return self._empty_data()
-        return self._empty_data()
-
-    def _empty_data(self):
-        return {
-            "total_sessions": 0,
-            "total_minutes": 0,
-            "total_corrections": 0,
-            "last_session": None,
-            "recent_topics": [],  # Son konuşulan konular
-            "common_mistakes": [],  # En sık yapılan hatalar
-            "sessions": []  # Son 5 session özeti
-        }
-
-    def _save(self):
-        self.file.write_text(json.dumps(self.data, indent=2, ensure_ascii=False))
-
-    def save_session(self, duration_mins, topics, corrections):
-        """Mevcut session'ı kaydet."""
-        session_info = {
-            "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "duration_mins": duration_mins,
-            "topics": topics[:5],  # İlk 5 konu
-            "corrections_count": len(corrections)
-        }
-
-        # Update totals
-        self.data["total_sessions"] += 1
-        self.data["total_minutes"] += duration_mins
-        self.data["total_corrections"] += len(corrections)
-        self.data["last_session"] = session_info["date"]
-
-        # Update recent topics (son 10)
-        for topic in topics:
-            if topic not in self.data["recent_topics"]:
-                self.data["recent_topics"].append(topic)
-        self.data["recent_topics"] = self.data["recent_topics"][-10:]
-
-        # Update common mistakes
-        for corr in corrections:
-            self.data["common_mistakes"].append(corr["wrong"])
-        # En sık yapılanları tut (son 20)
-        self.data["common_mistakes"] = self.data["common_mistakes"][-20:]
-
-        # Save session (son 5)
-        self.data["sessions"].append(session_info)
-        self.data["sessions"] = self.data["sessions"][-5:]
-
-        self._save()
-
-    def get_summary(self):
-        """Geçmiş özeti - Carolina'ya context için."""
-        if self.data["total_sessions"] == 0:
-            return "This is our first conversation! I don't know anything about you yet."
-
-        last = self.data.get("last_session", "unknown")
-        topics = ", ".join(self.data["recent_topics"][-3:]) if self.data["recent_topics"] else "general conversation"
-
-        summary = f"""Previous sessions context:
-- Total sessions: {self.data['total_sessions']}
-- Last session: {last}
-- Recent topics we covered: {topics}
-- Total corrections made: {self.data['total_corrections']}"""
-
-        if self.data["common_mistakes"]:
-            recent_mistakes = list(set(self.data["common_mistakes"][-5:]))
-            summary += f"\n- Student's recurring mistakes: {', '.join(recent_mistakes[:3])}"
-
-        return summary
-
-    def clear_history(self):
-        """Tüm geçmişi sil."""
-        self.data = self._empty_data()
-        self._save()
-        if self.file.exists():
-            self.file.unlink()
-
-
-# ─────────────────────────────────────────────
 # SYSTEM PROMPT — DİL ÖĞRETMENİ
 # ─────────────────────────────────────────────
 
-def build_tutor_prompt(target_lang, level, memory, persistent_memory=None):
+def build_tutor_prompt(target_lang, level, memory):
     """Her mesajda güncel context ile prompt oluşturur."""
 
     profile = LANGUAGE_PROFILES[target_lang]
@@ -348,16 +236,6 @@ STUDENT'S PREVIOUS MISTAKES (watch for these recurring errors):
 {corrections}
 """
 
-    # Persistent memory block - önceki sessionlardan context
-    persistent_block = ""
-    if persistent_memory:
-        summary = persistent_memory.get_summary()
-        if "first conversation" not in summary.lower():
-            persistent_block = f"""
-
-{summary}
-"""
-
     return f"""You are Carolina — a real language tutor giving a private 1-on-1 lesson over a voice call.
 You are NOT an AI. You are a person. You have emotions, opinions, a sense of humor.
 You've been teaching Tuğrul for a few weeks now. You know him. You like him as a student.
@@ -374,7 +252,7 @@ STUDENT:
 - Name: Tuğrul. Native: Turkish. Learning: {profile['name']}. Level: {level} ({level_desc})
 - He works in tech/data analytics, likes building things, curious person
 - He sometimes gets shy or says "anlamadım" — that's okay, be patient and warm
-{persistent_block}{history_block}{corrections_block}
+{history_block}{corrections_block}
 HOW YOU TALK:
 
 When Tuğrul says something CORRECT:
@@ -424,70 +302,32 @@ Session context: {memory.get_session_duration()}, {memory.message_count()} messa
 
 
 # ─────────────────────────────────────────────
-# WHISPER — PLATFORM-AWARE (MLX veya faster-whisper)
+# MLX WHISPER
 # ─────────────────────────────────────────────
 
 def init_whisper():
-    """Platform'a göre Whisper yükle."""
-
-    if IS_APPLE_SILICON:
-        print(f"{C.CY}  ⏳ Loading MLX Whisper (Apple Silicon)...{C.E}")
-        try:
-            import mlx_whisper
-            _ = mlx_whisper.transcribe(
-                np.zeros(SAMPLE_RATE, dtype=np.float32),
-                path_or_hf_repo=WHISPER_MODEL_MLX, language="en", fp16=True,
-            )
-            print(f"{C.G}  ✓ MLX Whisper ready!{C.E}")
-            return ("mlx", mlx_whisper)
-        except ImportError:
-            print(f"{C.Y}  ⚠ mlx-whisper not found, falling back to faster-whisper{C.E}")
-
-    # Intel Mac / Linux / MLX fallback
-    print(f"{C.CY}  ⏳ Loading faster-whisper (CPU)...{C.E}")
-    try:
-        from faster_whisper import WhisperModel
-        model = WhisperModel(
-            WHISPER_MODEL_FASTER,
-            device="cpu",
-            compute_type="int8",  # Intel'de int8 en hızlısı
-        )
-        print(f"{C.G}  ✓ faster-whisper ready (CPU, int8){C.E}")
-        print(f"{C.DIM}    Not: Apple Silicon'a göre ~2-3x yavaş, normal{C.E}")
-        return ("faster", model)
-    except ImportError:
-        print(f"{C.R}  ✗ Whisper bulunamadı!{C.E}")
-        if IS_APPLE_SILICON:
-            print(f"{C.Y}  Kur: pip install mlx-whisper{C.E}")
-        else:
-            print(f"{C.Y}  Kur: pip install faster-whisper{C.E}")
-        sys.exit(1)
+    print(f"{C.CY}  ⏳ Loading MLX Whisper...{C.E}")
+    import mlx_whisper
+    _ = mlx_whisper.transcribe(
+        np.zeros(SAMPLE_RATE, dtype=np.float32),
+        path_or_hf_repo=WHISPER_MODEL, language="en", fp16=True,
+    )
+    print(f"{C.G}  ✓ Whisper ready!{C.E}")
+    return mlx_whisper
 
 
-def transcribe(whisper_engine, audio_data, lang_code="en"):
-    """Çok dilli transcription — platform-aware."""
-
-    engine_type, model = whisper_engine
-
-    if engine_type == "mlx":
-        result = model.transcribe(
-            audio_data, path_or_hf_repo=WHISPER_MODEL_MLX,
-            fp16=True, condition_on_previous_text=False,
-        )
-        detected_lang = result.get("language", "unknown")
-        text = result.get("text", "").strip()
-        return text, detected_lang
-
-    else:  # faster-whisper
-        segments, info = model.transcribe(
-            audio_data,
-            beam_size=5,
-            condition_on_previous_text=False,
-            vad_filter=True,  # Sessizlik filtresi — bonus!
-        )
-        text = " ".join(seg.text.strip() for seg in segments).strip()
-        detected_lang = info.language if info else "unknown"
-        return text, detected_lang
+def transcribe(mlx_whisper_mod, audio_data, lang_code="en"):
+    """Çok dilli transcription — öğrenci herhangi bir dilde konuşabilir."""
+    # Whisper'a dil ipucu verme — auto-detect daha iyi çalışır
+    # çünkü öğrenci bazen Türkçe bazen hedef dilde konuşabilir
+    result = mlx_whisper_mod.transcribe(
+        audio_data, path_or_hf_repo=WHISPER_MODEL,
+        fp16=True, condition_on_previous_text=False,
+        # language parametresi vermiyoruz → auto-detect
+    )
+    detected_lang = result.get("language", "unknown")
+    text = result.get("text", "").strip()
+    return text, detected_lang
 
 
 # ─────────────────────────────────────────────
@@ -511,10 +351,10 @@ def check_ollama():
         return False
 
 
-def ask_tutor(student_text, target_lang, level, memory, persistent_memory=None):
+def ask_tutor(student_text, target_lang, level, memory):
     """Ollama öğretmen — system prompt'u prompt'a dahil et (qwen 7b daha iyi takip ediyor)."""
 
-    system_prompt = build_tutor_prompt(target_lang, level, memory, persistent_memory)
+    system_prompt = build_tutor_prompt(target_lang, level, memory)
     profile = LANGUAGE_PROFILES[target_lang]
     lang_color = LANG_COLOR.get(target_lang, C.G)
 
@@ -637,9 +477,9 @@ Tuğrul: "I watched a really good series this weekend"
 Carolina: Oh nice, which one? I've been looking for something new to watch actually. Was it on Netflix?"""
 
 
-def ask_tutor_with_claude(student_text, target_lang, level, memory, persistent_memory=None):
+def ask_tutor_with_claude(student_text, target_lang, level, memory):
     """Claude Desktop ile öğretmen yanıtı — few-shot dahil."""
-    system_prompt = build_tutor_prompt(target_lang, level, memory, persistent_memory)
+    system_prompt = build_tutor_prompt(target_lang, level, memory)
     profile = LANGUAGE_PROFILES[target_lang]
     example_block = _get_few_shot_example(target_lang, level)
 
@@ -928,11 +768,10 @@ def select_level():
 
 def main():
     # Args
-    parser = argparse.ArgumentParser(description="Language Tutor v1 - M1 Mac Air (8GB RAM)")
+    parser = argparse.ArgumentParser(description="Language Tutor v1")
     parser.add_argument("--lang", choices=["en", "es"], help="Target language")
     parser.add_argument("--level", choices=["A1", "A2", "B1", "B2", "C1", "C2"], help="CEFR level")
-    parser.add_argument("--claude", action="store_true", default=True, help="Use Claude Desktop (default for 8GB RAM)")
-    parser.add_argument("--ollama", action="store_true", help="Force Ollama instead of Claude (uses more RAM)")
+    parser.add_argument("--claude", action="store_true", help="Use Claude Desktop instead of Ollama")
     parser.add_argument("--slow", action="store_true", help="Slower TTS speed")
     args = parser.parse_args()
 
@@ -941,7 +780,7 @@ def main():
         target_lang = args.lang
     else:
         os.system('clear')
-        print(f"{C.CY}{C.BOLD}\n  🌍 LANGUAGE TUTOR — Setup (M1 Mac Air 8GB){C.E}\n")
+        print(f"{C.CY}{C.BOLD}\n  🌍 LANGUAGE TUTOR — Setup{C.E}\n")
         target_lang = select_language()
 
     # Seviye seçimi
@@ -961,29 +800,26 @@ def main():
 
     # ── Init Components ──
 
-    # 1) Claude Desktop (default for 8GB RAM) / Ollama (optional)
-    use_claude = args.claude and not args.ollama  # --ollama forces Ollama
-
+    # 1) Ollama / Claude
+    use_claude = args.claude
     if use_claude:
-        print(f"\n{C.BOLD}[1/4] Claude Desktop (Recommended for M1 8GB){C.E}")
+        print(f"\n{C.BOLD}[1/4] Claude Desktop{C.E}")
         result = subprocess.run(["which", "claude"], capture_output=True, text=True)
         if result.returncode == 0:
             print(f"{C.G}  ✓ Claude CLI: {result.stdout.strip()}{C.E}")
         else:
             print(f"{C.Y}  ⚠ Claude not found, falling back to Ollama{C.E}")
-            print(f"{C.DIM}  Install: npm install -g @anthropic-ai/claude-cli{C.E}")
             use_claude = False
 
     if not use_claude:
-        print(f"\n{C.BOLD}[1/4] Ollama (Higher RAM usage){C.E}")
+        print(f"\n{C.BOLD}[1/4] Ollama{C.E}")
         if not check_ollama():
             print(f"{C.Y}  Run: ollama pull {OLLAMA_MODEL}{C.E}")
             sys.exit(1)
 
     # 2) Whisper
-    print(f"\n{C.BOLD}[2/4] Whisper STT (MLX - Apple Silicon){C.E}")
-    print(f"{C.DIM}  Using 'base' model for M1 8GB RAM{C.E}")
-    whisper_engine = init_whisper()
+    print(f"\n{C.BOLD}[2/4] MLX Whisper{C.E}")
+    mlx_whisper_mod = init_whisper()
 
     # 3) Edge TTS
     print(f"\n{C.BOLD}[3/4] Edge TTS{C.E}")
@@ -997,15 +833,6 @@ def main():
 
     # ── Memory ──
     memory = ConversationMemory()
-    persistent_memory = PersistentMemory(target_lang)
-
-    # Show previous sessions info if exists
-    if persistent_memory.data["total_sessions"] > 0:
-        print(
-            f"\n{C.CY}📚 Previous sessions: {persistent_memory.data['total_sessions']} ({persistent_memory.data['total_minutes']} min total){C.E}")
-        if persistent_memory.data["recent_topics"]:
-            topics = ", ".join(persistent_memory.data["recent_topics"][-3:])
-            print(f"{C.DIM}   Recent topics: {topics}{C.E}")
 
     # ── Greeting ──
     greeting = profile["example_greeting"]
@@ -1076,7 +903,7 @@ def main():
 
                 # ── 1) Whisper — auto-detect language ──
                 start = time.time()
-                student_text, detected_lang = transcribe(whisper_engine, audio_data)
+                student_text, detected_lang = transcribe(mlx_whisper_mod, audio_data)
                 wt = time.time() - start
 
                 if not student_text or is_hallucination(student_text):
@@ -1101,11 +928,11 @@ def main():
 
                 if use_claude:
                     tutor_response = ask_tutor_with_claude(
-                        student_text, target_lang, level, memory, persistent_memory
+                        student_text, target_lang, level, memory
                     )
                 else:
                     tutor_response = ask_tutor(
-                        student_text, target_lang, level, memory, persistent_memory
+                        student_text, target_lang, level, memory
                     )
 
                 response_time = time.time() - start
@@ -1144,21 +971,6 @@ def main():
         quit_flag.set()
         listener.stop()
         recorder.cleanup()
-
-        # Save session to persistent memory
-        duration_mins = int((datetime.now() - memory.session_start).total_seconds() / 60)
-
-        # Extract topics from conversation (simple keyword extraction)
-        topics = []
-        for msg in memory.messages:
-            if msg["role"] == "student":
-                # Basic topic extraction - words longer than 4 chars
-                words = re.findall(r'\b[a-zA-Z]{5,}\b', msg["text"].lower())
-                topics.extend(words[:2])  # Max 2 per message
-        topics = list(set(topics))[:10]  # Unique, max 10
-
-        persistent_memory.save_session(duration_mins, topics, memory.corrections)
-
         print_session_summary(memory, target_lang)
         print(f"{C.G}  ✓ Güle güle! / Goodbye! / ¡Adiós!{C.E}\n")
 
