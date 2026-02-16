@@ -2,11 +2,11 @@
 """
 ==========================================================
   🌍 LANGUAGE TUTOR v1 — Çok Dilli Dil Öğretmeni
-  Intel Mac Optimized (8GB RAM) + Claude Desktop
+  M1 MacBook Air (8GB RAM) - Optimized for Apple Silicon
 ==========================================================
 
 Mimari:
-  [Cmd+Shift] → Konuş → faster-whisper → Claude Desktop → Edge TTS
+  [Cmd+Shift] → Konuş → MLX Whisper → Claude Desktop → Edge TTS
 
 Desteklenen Diller:
   🇹🇷 Türkçe (ana dil)
@@ -20,20 +20,21 @@ Desteklenen Diller:
   - Seviye adaptasyonu (A1→C2)
   - Konuşma hafızası (son 20 mesaj)
   - Edge TTS ile doğal sesli yanıt
-  - Claude Desktop ile güçlü dil modeli
-  - Intel Mac için optimize (8GB RAM)
+  - Claude Desktop ile güçlü dil modeli (RAM tasarrufu)
+  - MLX Whisper - Apple Silicon optimize
+  - M1 8GB RAM için optimize
 
-Gereksinimler (Intel Mac):
-  pip install pyaudio faster-whisper numpy pynput edge-tts requests --break-system-packages
+Gereksinimler (M1 Mac):
+  pip install pyaudio mlx-whisper numpy pynput edge-tts requests --break-system-packages
   npm install -g @anthropic-ai/claude-cli  # Claude Desktop CLI
 
 Kullanım:
-  python3 lang_intel.py                  # Claude Desktop (default)
-  python3 lang_intel.py --ollama         # Ollama zorla (Claude yerine)
-  python3 lang_intel.py --lang es        # Doğrudan İspanyolca
-  python3 lang_intel.py --lang en        # Doğrudan İngilizce
-  python3 lang_intel.py --level B1       # Seviye belirle
-  python3 lang_intel.py --slow           # Yavaş TTS
+  python3 lang_m1.py                     # Claude Desktop (default, RAM tasarruflu)
+  python3 lang_m1.py --ollama            # Ollama zorla (daha fazla RAM)
+  python3 lang_m1.py --lang es           # Doğrudan İspanyolca
+  python3 lang_m1.py --lang en           # Doğrudan İngilizce
+  python3 lang_m1.py --level B1          # Seviye belirle
+  python3 lang_m1.py --slow              # Yavaş TTS
 ==========================================================
 """
 
@@ -66,14 +67,11 @@ import platform
 
 IS_APPLE_SILICON = platform.machine() == "arm64" and platform.system() == "Darwin"
 
-WHISPER_MODEL_MLX = "mlx-community/whisper-large-v3-turbo"
-WHISPER_MODEL_FASTER = "base"  # Intel Mac için daha hafif model (8GB RAM)
+WHISPER_MODEL_MLX = "mlx-community/whisper-base"  # M1 8GB için hafif model
+WHISPER_MODEL_FASTER = "base"  # faster-whisper fallback
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "qwen2.5:7b"
-
-# Claude Desktop - Intel Mac için önerilen
-USE_CLAUDE_DEFAULT = True  # Intel Mac'te Claude Desktop öneriliyor
 
 # ─────────────────────────────────────────────
 # DİL PROFİLLERİ
@@ -821,11 +819,11 @@ def select_level():
 
 def main():
     # Args
-    parser = argparse.ArgumentParser(description="Language Tutor v1 - Intel Mac Optimized")
+    parser = argparse.ArgumentParser(description="Language Tutor v1 - M1 Mac Air (8GB RAM)")
     parser.add_argument("--lang", choices=["en", "es"], help="Target language")
     parser.add_argument("--level", choices=["A1", "A2", "B1", "B2", "C1", "C2"], help="CEFR level")
-    parser.add_argument("--claude", action="store_true", default=True, help="Use Claude Desktop (default on Intel Mac)")
-    parser.add_argument("--ollama", action="store_true", help="Force Ollama instead of Claude")
+    parser.add_argument("--claude", action="store_true", default=True, help="Use Claude Desktop (default for 8GB RAM)")
+    parser.add_argument("--ollama", action="store_true", help="Force Ollama instead of Claude (uses more RAM)")
     parser.add_argument("--slow", action="store_true", help="Slower TTS speed")
     args = parser.parse_args()
 
@@ -834,7 +832,7 @@ def main():
         target_lang = args.lang
     else:
         os.system('clear')
-        print(f"{C.CY}{C.BOLD}\n  🌍 LANGUAGE TUTOR — Setup (Intel Mac){C.E}\n")
+        print(f"{C.CY}{C.BOLD}\n  🌍 LANGUAGE TUTOR — Setup (M1 Mac Air 8GB){C.E}\n")
         target_lang = select_language()
 
     # Seviye seçimi
@@ -854,11 +852,11 @@ def main():
 
     # ── Init Components ──
 
-    # 1) Claude Desktop (default) / Ollama (fallback)
+    # 1) Claude Desktop (default for 8GB RAM) / Ollama (optional)
     use_claude = args.claude and not args.ollama  # --ollama forces Ollama
 
     if use_claude:
-        print(f"\n{C.BOLD}[1/4] Claude Desktop (Recommended for Intel Mac){C.E}")
+        print(f"\n{C.BOLD}[1/4] Claude Desktop (Recommended for M1 8GB){C.E}")
         result = subprocess.run(["which", "claude"], capture_output=True, text=True)
         if result.returncode == 0:
             print(f"{C.G}  ✓ Claude CLI: {result.stdout.strip()}{C.E}")
@@ -868,14 +866,14 @@ def main():
             use_claude = False
 
     if not use_claude:
-        print(f"\n{C.BOLD}[1/4] Ollama{C.E}")
+        print(f"\n{C.BOLD}[1/4] Ollama (Higher RAM usage){C.E}")
         if not check_ollama():
             print(f"{C.Y}  Run: ollama pull {OLLAMA_MODEL}{C.E}")
             sys.exit(1)
 
     # 2) Whisper
-    print(f"\n{C.BOLD}[2/4] Whisper STT (Intel Mac - faster-whisper){C.E}")
-    print(f"{C.DIM}  Using 'base' model for 8GB RAM compatibility{C.E}")
+    print(f"\n{C.BOLD}[2/4] Whisper STT (MLX - Apple Silicon){C.E}")
+    print(f"{C.DIM}  Using 'base' model for M1 8GB RAM{C.E}")
     whisper_engine = init_whisper()
 
     # 3) Edge TTS

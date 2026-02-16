@@ -1,11 +1,11 @@
-# Language Tutor - Intel Mac Requirements
-# Install with: pip3 install -r requirements.txt --break-system-packages
+# Language Tutor - M1 MacBook Air Requirements
+# Install with: pip3 install -r requirements_m1.txt --break-system-packages
 
 # Audio Processing
 pyaudio>=0.2.13
 
-# Speech Recognition (Intel Mac optimized)
-faster-whisper>=1.0.0
+# Speech Recognition (Apple Silicon - MLX optimized)
+mlx-whisper>=0.3.0
 
 # Numerical Computing
 numpy>=1.24.0

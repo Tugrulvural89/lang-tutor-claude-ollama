@@ -1,9 +1,9 @@
 #!/bin/bash
-# Language Tutor - Intel Mac Quick Setup
+# Language Tutor - M1 Mac Quick Setup
 set -e
 
-echo "🌍 Language Tutor - Intel Mac Setup"
-echo "===================================="
+echo "🌍 Language Tutor - M1 Mac Setup"
+echo "================================"
 echo ""
 
 # Check macOS
@@ -14,33 +14,36 @@ fi
 
 # Check architecture
 ARCH=$(uname -m)
-if [[ "$ARCH" != "x86_64" ]]; then
-    echo "⚠️  Warning: This is optimized for Intel Macs"
+if [[ "$ARCH" != "arm64" ]]; then
+    echo "❌ This script is for Apple Silicon (M1/M2/M3) Macs"
     echo "   Your architecture: $ARCH"
-    read -p "   Continue anyway? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        exit 1
-    fi
-fi
-
-echo "📦 Step 1/4: Installing system dependencies..."
-if ! command -v brew &> /dev/null; then
-    echo "❌ Homebrew not found. Install from: https://brew.sh"
+    echo "   For Intel Macs, use setup_intel.sh instead"
     exit 1
 fi
 
-# PortAudio for PyAudio
-if ! brew list portaudio &> /dev/null; then
-    echo "   Installing PortAudio..."
-    brew install portaudio
+echo "✓ Detected Apple Silicon ($ARCH)"
+echo ""
+
+# Check RAM
+RAM_GB=$(sysctl hw.memsize | awk '{print int($2/1024/1024/1024)}')
+echo "✓ Detected ${RAM_GB}GB RAM"
+if [ "$RAM_GB" -lt 8 ]; then
+    echo "⚠️  Warning: Less than 8GB RAM detected"
+    echo "   The app may run slowly. Consider using Claude Desktop (default) instead of Ollama."
+fi
+echo ""
+
+echo "📦 Step 1/4: Checking Homebrew..."
+if ! command -v brew &> /dev/null; then
+    echo "❌ Homebrew not found. Install from: https://brew.sh"
+    exit 1
 else
-    echo "   ✓ PortAudio already installed"
+    echo "   ✓ Homebrew installed: $(brew --version | head -1)"
 fi
 
 echo ""
 echo "📦 Step 2/4: Installing Python packages..."
-pip3 install pyaudio faster-whisper numpy pynput edge-tts requests --break-system-packages
+pip3 install pyaudio mlx-whisper numpy pynput edge-tts requests --break-system-packages
 
 echo ""
 echo "📦 Step 3/4: Installing Claude Desktop CLI..."
@@ -49,6 +52,7 @@ if command -v claude &> /dev/null; then
 else
     if ! command -v npm &> /dev/null; then
         echo "❌ npm not found. Install Node.js from: https://nodejs.org"
+        echo "   Or run: brew install node"
         exit 1
     fi
     npm install -g @anthropic-ai/claude-cli
@@ -57,21 +61,26 @@ fi
 
 echo ""
 echo "📦 Step 4/4: Claude authentication..."
-if ! claude whoami &> /dev/null 2>&1; then
+if claude whoami &> /dev/null 2>&1; then
+    echo "   ✓ Already logged in: $(claude whoami)"
+else
     echo "   Please login to Claude:"
     claude login
-else
-    echo "   ✓ Already logged in: $(claude whoami)"
 fi
 
 echo ""
 echo "✅ Setup complete!"
 echo ""
 echo "🚀 Quick Start:"
-echo "   python3 lang_intel.py --lang en --level B1"
+echo "   python3 lang_m1.py --lang en --level B1"
+echo ""
+echo "💡 M1 Optimizations:"
+echo "   - MLX Whisper for Apple Silicon (fast!)"
+echo "   - Claude Desktop default (RAM efficient)"
+echo "   - Use --ollama for fully local (more RAM)"
 echo ""
 echo "📖 Full documentation:"
-echo "   cat README_INTEL.md"
+echo "   cat README_M1.md"
 echo ""
 echo "⌨️  Controls:"
 echo "   Cmd+Shift (hold) - Speak"

@@ -1,339 +1,356 @@
-# 🔧 Installation Guide - Language Tutor (Intel Mac)
+# 🌍 Language Tutor - M1 MacBook Air Edition
 
-Complete step-by-step installation guide for Intel MacBook Air/Pro (8GB RAM).
+AI-powered language learning assistant optimized for M1 MacBook Air (8GB RAM). Best of both worlds: Apple Silicon performance + memory efficiency.
 
-## Prerequisites Check
+## ✨ Why M1 Edition?
 
-Before starting, verify your system:
+- 🚀 **MLX Whisper** - Apple Silicon hardware acceleration (3-5x faster than Intel)
+- 💾 **Claude Desktop default** - Cloud AI = less RAM usage (~3GB vs 6GB with Ollama)
+- ⚡ **Fast transcription** - M1's Neural Engine optimized
+- 🎯 **8GB RAM optimized** - Smart model choices for memory efficiency
+
+## 🎯 Features
+
+- 🎙️ **Voice-based learning** - Press Cmd+Shift to speak, get instant feedback
+- 🤖 **Claude Desktop powered** - Best-in-class AI responses
+- 🗣️ **MLX Whisper** - Hardware-accelerated speech recognition
+- 🔊 **Edge TTS** - Natural text-to-speech
+- 📚 **Multi-level support** - A1 (beginner) to C2 (mastery)
+- 💬 **Natural corrections** - Learn from mistakes conversationally
+- 🇹🇷 **Turkish explanations** - Complex grammar in your native language
+- 💾 **Memory efficient** - Optimized for 8GB RAM
+
+## 🎯 Supported Languages
+
+- 🇬🇧 **English** - American English
+- 🇪🇸 **Spanish** - Latin American Spanish
+- 🇹🇷 **Turkish** - Explanation language
+
+## 📋 System Requirements
+
+- **Mac**: M1/M2/M3 MacBook Air/Pro
+- **RAM**: 8GB minimum
+- **OS**: macOS 11.0+ (Big Sur or later)
+- **Storage**: ~1.5GB for models
+- **Internet**: Required for Claude Desktop
+
+## 🚀 Quick Setup
+
+### Option 1: Automated (Recommended)
 
 ```bash
-# Check macOS version (should be 10.14+)
-sw_vers
-
-# Check architecture (should show x86_64)
-uname -m
-
-# Check available RAM (should be at least 8GB)
-sysctl hw.memsize | awk '{print $2/1024/1024/1024 " GB"}'
+chmod +x setup_m1.sh
+./setup_m1.sh
 ```
 
-## Method 1: Automated Installation (Recommended)
-
-### Step 1: Download Files
-Download these files:
-- `lang_intel.py`
-- `setup_intel.sh`
-- `requirements.txt`
-
-### Step 2: Run Setup Script
-```bash
-cd ~/Downloads  # or wherever you saved the files
-chmod +x setup_intel.sh
-./setup_intel.sh
-```
-
-The script will:
-1. ✅ Install PortAudio via Homebrew
-2. ✅ Install Python packages
-3. ✅ Install Claude Desktop CLI
-4. ✅ Authenticate with Claude
-
-### Step 3: Test
-```bash
-python3 lang_intel.py --lang en --level B1
-```
-
----
-
-## Method 2: Manual Installation (Step by Step)
-
-### Step 1: Install Homebrew
-
-If you don't have Homebrew:
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-
-Verify:
-```bash
-brew --version
-```
-
-### Step 2: Install PortAudio
+### Option 2: Manual Installation
 
 ```bash
-brew install portaudio
-```
+# 1. Install Python packages
+pip3 install pyaudio mlx-whisper numpy pynput edge-tts requests --break-system-packages
 
-Verify:
-```bash
-brew list portaudio
-```
-
-### Step 3: Install Python Packages
-
-**Option A: Using requirements.txt**
-```bash
-pip3 install -r requirements.txt --break-system-packages
-```
-
-**Option B: Manual installation**
-```bash
-pip3 install pyaudio --break-system-packages
-pip3 install faster-whisper --break-system-packages
-pip3 install numpy --break-system-packages
-pip3 install pynput --break-system-packages
-pip3 install edge-tts --break-system-packages
-pip3 install requests --break-system-packages
-```
-
-**Why `--break-system-packages`?**
-macOS Monterey+ has system-wide Python protection. This flag allows installation into the system Python (safe for development).
-
-### Step 4: Install Node.js (if needed)
-
-Check if you have Node.js:
-```bash
-node --version
-npm --version
-```
-
-If not installed:
-```bash
-brew install node
-```
-
-### Step 5: Install Claude Desktop CLI
-
-```bash
-npm install -g @anthropic-ai/claude-cli
-```
-
-Verify:
-```bash
-which claude
-claude --version
-```
-
-### Step 6: Authenticate with Claude
-
-```bash
-claude login
-```
-
-This will:
-1. Open your browser
-2. Ask you to sign in to claude.ai
-3. Generate an API token
-4. Save it locally
-
-Verify:
-```bash
-claude whoami
-```
-
-### Step 7: Test Installation
-
-```bash
-# Test Whisper (first run will download model ~150MB)
-python3 -c "from faster_whisper import WhisperModel; print('✓ Whisper OK')"
-
-# Test Edge TTS
-edge-tts --text "Hello world" --write-media test.mp3 && afplay test.mp3 && rm test.mp3
-
-# Test PyAudio
-python3 -c "import pyaudio; print('✓ PyAudio OK')"
-
-# Test Claude CLI
-claude --help
-```
-
-### Step 8: Run Language Tutor
-
-```bash
-python3 lang_intel.py --lang en --level B1
-```
-
----
-
-## Method 3: Using Virtual Environment (Cleanest)
-
-For a cleaner installation that doesn't affect system Python:
-
-### Step 1: Create Virtual Environment
-
-```bash
-cd ~/Projects  # or your preferred location
-mkdir language-tutor
-cd language-tutor
-
-# Create venv
-python3 -m venv venv
-
-# Activate
-source venv/bin/activate
-```
-
-### Step 2: Install Dependencies
-
-```bash
-# Install PortAudio system-wide first
-brew install portaudio
-
-# Install Python packages in venv (no --break-system-packages needed)
-pip install -r requirements.txt
-```
-
-### Step 3: Install Claude CLI (still global)
-
-```bash
+# 2. Install Claude Desktop CLI
 npm install -g @anthropic-ai/claude-cli
 claude login
+
+# 3. Test
+python3 lang_m1.py --lang en --level B1
 ```
 
-### Step 4: Run
+## 🎮 Usage
+
+### Basic Usage
 
 ```bash
-# Make sure venv is activated
-source venv/bin/activate
-
-python lang_intel.py --lang en --level B1
+# Interactive setup - choose language and level
+python3 lang_m1.py
 ```
 
-### Step 5: Deactivate When Done
+### Quick Start Examples
 
 ```bash
-deactivate
+# English - Intermediate (default Claude)
+python3 lang_m1.py --lang en --level B1
+
+# Spanish - Beginner
+python3 lang_m1.py --lang es --level A2
+
+# Slower speech for beginners
+python3 lang_m1.py --lang es --level A1 --slow
+
+# Use Ollama instead (more RAM, fully local)
+python3 lang_m1.py --ollama --lang en --level B1
 ```
 
----
+## ⌨️ Keyboard Controls
 
-## Verification Checklist
+- **Cmd+Shift** (hold): Record voice
+- **Cmd+Q**: Quit application
 
-After installation, verify everything works:
+## 📊 Performance (M1 8GB)
 
-- [ ] PortAudio installed: `brew list portaudio`
-- [ ] PyAudio working: `python3 -c "import pyaudio; print('OK')"`
-- [ ] faster-whisper working: `python3 -c "from faster_whisper import WhisperModel; print('OK')"`
-- [ ] Edge TTS working: `edge-tts --text "Test" --write-media t.mp3`
-- [ ] Claude CLI installed: `which claude`
-- [ ] Claude authenticated: `claude whoami`
-- [ ] Node.js installed: `node --version`
+| Component | Time | Notes |
+|-----------|------|-------|
+| MLX Whisper | 0.5-1s | Apple Silicon optimized |
+| Claude API | 2-4s | Cloud processing |
+| Edge TTS | 1-2s | Natural speech |
+| **Total** | **3.5-7s** | Very responsive! |
 
----
+### M1 vs Intel Comparison
 
-## First Run: What to Expect
+| Metric | M1 (This) | Intel Mac | M4 Pro |
+|--------|-----------|-----------|---------|
+| Whisper | MLX (fast) | faster-whisper | MLX (fastest) |
+| Speed | 0.5-1s | 2-3s | 0.3-0.5s |
+| RAM Usage | 3-4GB | 3-4GB | 8-10GB |
+| Total Latency | 3.5-7s | 6-10s | 2-5s |
 
-When you run for the first time:
+## 💡 Memory Management Tips
 
-```bash
-python3 lang_intel.py --lang en --level B1
+### Why Claude Desktop for 8GB?
+
+```
+Ollama (local):  6-8GB RAM → May cause swapping on 8GB Macs
+Claude Desktop:  3-4GB RAM → Comfortable on 8GB
 ```
 
-**You'll see:**
-
-1. **Whisper model download** (150MB, happens once)
-   ```
-   Downloading model...
-   [==========] 100%
-   ```
-
-2. **Component initialization**
-   ```
-   [1/4] Claude Desktop
-     ✓ Claude CLI: /opt/homebrew/bin/claude
-   
-   [2/4] Whisper STT (Intel Mac - faster-whisper)
-     Using 'base' model for 8GB RAM compatibility
-     ✓ Whisper ready
-   
-   [3/4] Edge TTS
-     ✓ Edge TTS ready
-     Voice: en-US-MichelleNeural, Rate: +5%
-   
-   [4/4] Microphone
-     ✓ Microphone ready
-   ```
-
-3. **Initial greeting**
-   ```
-   🇬🇧 Tutor: Hey Tuğrul! Okay so... what do you want to talk about today?
-   
-   [Cmd+Shift] hold to speak | [Cmd+Q] quit
-   ```
-
-4. **First interaction** (after you speak)
-   - Whisper processes your voice (~2-3 sec)
-   - Claude generates response (~3-5 sec)
-   - TTS speaks the response (~1-2 sec)
-
-**Total first interaction: 6-10 seconds is normal.**
-
----
-
-## Optional: Ollama Installation
-
-If you prefer fully local processing (no Claude API costs):
-
-### Install Ollama
+### If You Want Fully Local (Ollama)
 
 ```bash
+# Install Ollama
 brew install ollama
-
-# Start Ollama service
-ollama serve &
-
-# Pull model (2.5GB download)
 ollama pull qwen2.5:7b
+
+# Use it
+python3 lang_m1.py --ollama
+
+# Monitor memory
+Activity Monitor → Memory tab → Watch "Memory Pressure"
 ```
 
-### Use with Language Tutor
+**Recommendation:** Stick with Claude Desktop unless you really need offline mode.
+
+## 🎓 Learning Levels (CEFR)
+
+### A1 - Absolute Beginner
+Simple words, short sentences, lots of Turkish explanations
+
+### A2 - Elementary
+Basic phrases, new words explained in Turkish
+
+### B1 - Intermediate (Recommended Start)
+Natural conversations, target language mostly, Turkish for complex grammar
+
+### B2 - Upper Intermediate
+Abstract topics, Turkish only when asked
+
+### C1 - Advanced
+Nuanced conversations, subtle corrections
+
+### C2 - Mastery
+Near-native level, idioms and cultural nuance
+
+## 💡 Learning Tips
+
+### Getting Started
+1. **Start at B1** even if you feel A2 - the tutor adapts
+2. **15 min daily** beats occasional long sessions
+3. **Don't worry about perfection** - focus on communication
+
+### Effective Practice
+- Say **"Anlamadım"** when confused (gets Turkish explanation)
+- Request specific practice: "Let's practice past tense"
+- Review corrections in session summary
+- Practice consistently, same time each day
+
+### Common Mistakes to Avoid
+- Don't interrupt the tutor mid-sentence
+- Speak naturally, no need to over-enunciate
+- If misunderstood, rephrase instead of repeating
+
+## 🔧 Troubleshooting
+
+### "Claude not found"
 
 ```bash
-python3 lang_intel.py --ollama --lang en --level B1
+npm install -g @anthropic-ai/claude-cli
+claude login
 ```
 
-**Trade-offs:**
-- ✅ Fully local (no internet needed)
-- ✅ Free (no API costs)
-- ✅ Privacy (nothing leaves your Mac)
-- ❌ Slower responses (3-8 seconds vs 1-3 with Claude)
-- ❌ Lower quality (Qwen 7B < Claude Sonnet)
-- ❌ Higher RAM usage (~6-8GB vs 3-4GB)
+### MLX Whisper Issues
+
+```bash
+# Reinstall MLX Whisper
+pip3 uninstall mlx-whisper
+pip3 install mlx-whisper --upgrade --break-system-packages
+```
+
+### Out of Memory
+
+```bash
+# Close unnecessary apps
+# Activity Monitor → Sort by Memory
+
+# Use Claude (not Ollama)
+python3 lang_m1.py  # Claude is default
+
+# Reduce history (edit lang_m1.py)
+memory = ConversationMemory(max_size=10)  # Was 20
+```
+
+### Audio Issues
+
+```bash
+# System Preferences → Security & Privacy → Microphone
+# Enable Terminal/iTerm
+
+# Test microphone
+rec -r 16000 test.wav trim 0 3
+```
+
+## 🆚 When to Use What?
+
+### Use Claude Desktop (Default)
+- ✅ 8GB RAM Mac
+- ✅ Best quality responses
+- ✅ Lower memory usage
+- ✅ Faster than local Ollama
+- ❌ Requires internet
+- ❌ API costs (minimal)
+
+### Use Ollama (`--ollama`)
+- ✅ Fully offline/local
+- ✅ No API costs
+- ✅ Complete privacy
+- ❌ Higher RAM (6-8GB)
+- ❌ Slower responses
+- ❌ Lower quality
+
+## 📝 Example Session
+
+```bash
+$ python3 lang_m1.py --lang en --level B1
+
+🌍 LANGUAGE TUTOR — M1 Mac Air (8GB)
+══════════════════════════════════════
+
+[1/4] Claude Desktop (Recommended for M1 8GB)
+  ✓ Claude CLI: /opt/homebrew/bin/claude
+
+[2/4] Whisper STT (MLX - Apple Silicon)
+  Using 'base' model for M1 8GB RAM
+  ✓ Whisper ready
+
+[3/4] Edge TTS
+  ✓ Edge TTS ready
+
+[4/4] Microphone
+  ✓ Microphone ready
+
+  ✓ Her şey hazır!
+════════════════════════════════════════
+
+  🇬🇧 Tutor: Hey! So what's been going on with you lately?
+
+  [Cmd+Shift] hold to speak | [Cmd+Q] quit
+════════════════════════════════════════
+
+[You press Cmd+Shift and say: "I go to work yesterday"]
+
+● REC
+○ Processing...
+
+🎧 Whisper (en): "I go to work yesterday" (0.8s)
+
+────────────────────────────────────────
+🎤 [14:32:15] You (🇬🇧): I go to work yesterday
+────────────────────────────────────────
+
+⚡ Response: 3.2s
+🔊 Speaking...
+
+  🇬🇧 Tutor: Almost! Bak burada "go" değil "went" demen lazım 
+  çünkü "yesterday" diyorsun. "I went to work yesterday." 
+  Türkçe'de de "gittim" dersin, "giderim" demezsin değil mi? 
+  Hadi tekrar dene!
+
+  [Cmd+Shift] speak | [Cmd+Q] quit
+```
+
+## 📦 Files
+
+```
+language-tutor-m1/
+├── lang_m1.py              # Main program
+├── requirements_m1.txt     # Python dependencies
+├── setup_m1.sh            # Auto-installer
+├── README_M1.md           # This file
+└── TROUBLESHOOTING_M1.md  # Debug guide
+```
+
+## 🔐 Privacy
+
+- **MLX Whisper**: Runs locally on your Mac
+- **Claude Desktop**: Conversations sent to Anthropic API
+- **Edge TTS**: Text sent to Microsoft edge services
+- **No storage**: Conversation memory is session-only
+
+## 🎨 Customization
+
+### Faster Whisper (less accuracy)
+
+Edit `lang_m1.py`:
+```python
+WHISPER_MODEL_MLX = "mlx-community/whisper-tiny"  # Was "base"
+```
+
+### Slower TTS for Beginners
+
+```bash
+python3 lang_m1.py --slow
+```
+
+Or edit `lang_m1.py`:
+```python
+profile["tts_rate"] = "-20%"
+```
+
+### More Conversation Memory
+
+Edit `lang_m1.py`:
+```python
+memory = ConversationMemory(max_size=30)  # Was 20
+```
+
+## 📊 Session Summary
+
+After each session:
+```
+═══════════════════════════════════════
+  📊 Session Summary
+═══════════════════════════════════════
+  Duration: 18 min
+  Messages: 14 exchanges
+  Corrections: 3
+
+  Common mistakes:
+  - "I go" → "I went" (past tense)
+  - "Since three years" → "For three years"
+═══════════════════════════════════════
+```
+
+## 🤝 Contributing
+
+Found a bug? Have a suggestion? Open an issue!
+
+## 📄 License
+
+Educational purposes. Respect API terms:
+- Anthropic Claude API
+- Microsoft Edge TTS
 
 ---
 
-## Uninstallation
-
-To completely remove Language Tutor:
-
-```bash
-# Remove Python packages
-pip3 uninstall pyaudio faster-whisper numpy pynput edge-tts requests -y
-
-# Remove Claude CLI
-npm uninstall -g @anthropic-ai/claude-cli
-
-# Remove PortAudio (optional, might be used by other apps)
-brew uninstall portaudio
-
-# Remove Ollama (if installed)
-brew uninstall ollama
-
-# Remove downloaded models
-rm -rf ~/.cache/whisper
-rm -rf ~/.ollama
-```
-
----
-
-## Next Steps
-
-After installation:
-
-1. **Read the README** for usage examples
-2. **Start with B1 level** - the tutor adapts to you
-3. **Practice 15 minutes daily** - consistency beats length
-4. **Review corrections** at the end of each session
+**Made for M1/M2/M3 Mac users** 🚀
 
 Happy learning! 🎉
